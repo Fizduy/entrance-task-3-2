@@ -83,19 +83,30 @@ export function home_schedule (input_data){
             }
         });
 
-        /*Расчет стоимости включений прибора*/
-        device.schedule = [];
-        for (let i = 0; i < 24; ++i){
-            device.schedule[i] = {'price' : device.power*schedule[i].rate, 'start' : i};
-            for(let [d,s] = [1,0]; d < device.duration; ++d){
-                s = (i+d > 23) ? i+d-24 : i+d;
-                device.schedule[i].price += device.power*schedule[s].rate;
+        /* Расстановка приборов 24 */
+        if(device.duration == 24){
+            for (let i = 0; i < device.duration; ++i){
+                schedule[i].total_power -= device.power;
+                schedule[i].devices.push(device.id);
             }
+            device.start = 0;
+        /*Расчет стоимости включений прибора*/
+        }else{
+            device.schedule = [];
+            for (let i = 0; i < 24; ++i){
+                device.schedule[i] = {'price' : device.power*schedule[i].rate, 'start' : i};
+                for(let [d,s] = [1,0]; d < device.duration; ++d){
+                    s = (i+d > 23) ? i+d-24 : i+d;
+                    device.schedule[i].price += device.power*schedule[s].rate;
+                }
+            }
+            device.schedule.sort((a,b)=>{return a.price - b.price;})
+            device.price_delta = device.schedule[23].price-device.schedule[0].price;
         }
-        device.schedule.sort((a,b)=>{return a.price - b.price;})
-        device.price_delta = device.schedule[23].price-device.schedule[0].price;
+
     });
 
+    /* todo: расстановка остальныз приборов + перестоновка с рекурсией */
 
     const test_data = {
         "schedule": {
