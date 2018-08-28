@@ -1,6 +1,7 @@
+/* todo: вынести все этапы и процедуры в отдельные функции */
 export function home_schedule (input_data){
 
-    /*Создать расписание с исходными данными */
+    /*Объект расписания с исходными данными */
     const schedule = [];
     input_data.rates.forEach(rate => {
         function compare(i,from,to, callback){
@@ -10,7 +11,7 @@ export function home_schedule (input_data){
                     }else return false;
                 }
                 return true;
-            };
+            }
         for(let i = rate.from; compare(i,rate.from,rate.to,()=>{i = 0}); ++i){
             schedule[i] = {'rate':rate.value};
             schedule[i].total_power = input_data.maxPower;
@@ -42,18 +43,18 @@ export function home_schedule (input_data){
         throw Error('maxPower exceeded! id:'+input_data.devices[0].id);
     }
     
+
     input_data.devices.forEach(device => {
         device.start_at = false;
 
         /*Тест пика мощности - todo: вынести из цикла, либо реализовать тест для пересечений приборов менее 24 часа*/
         let device_maxPower = input_data.maxPower - device.power;
-
         for(let i=0;devices_duration[i].duration > 23; ++i){
             if(devices_duration[i].id != device.id){
                 device_maxPower -= devices_duration[i].power;
             }
         }
-        if(device.mode != undefined){
+        if(device.mode !== undefined){
             for(let i=0;devices_duration[i].duration > mode[device.mode].duration-1; ++i){
                 if(device.mode === devices_duration[i].mode && devices_duration[i].id != device.id){
                     device_maxPower -= devices_duration[i].power;
@@ -66,7 +67,7 @@ export function home_schedule (input_data){
 
         /*Тест Общей мощности и day/night промежутков*/
         mode.undefined.total_power -= device.power*device.duration;
-        if(device.mode != undefined){
+        if(device.mode !== undefined){
             mode[device.mode].total_power -= device.power*device.duration;
         }else{
             if(device.duration > mode.night.duration){
@@ -83,6 +84,18 @@ export function home_schedule (input_data){
             }
         });
 
+        /*Расчет стоимости включений прибора, для 24-приборов только один расчет, от 0:00*/
+        device.schedule = [];
+        for (let [i,end] = [0, (device.duration < 24) ? 24 : 1]; i < end; ++i){
+          device.schedule[i] = {'price' : device.power*schedule[i].rate, 'start' : i};
+          for(let [d,s] = [1,0]; d < device.duration; ++d){
+            s = (i+d > 23) ? i+d-24 : i+d;
+            device.schedule[i].price += device.power*schedule[s].rate;
+          }
+        }
+        device.schedule.sort((a,b)=>{return a.price - b.price;})
+        device.price_delta = device.schedule[23].price-device.schedule[0].price;
+      
         /* Расстановка приборов 24 */
         if(device.duration == 24){
             for (let i = 0; i < device.duration; ++i){
@@ -90,18 +103,6 @@ export function home_schedule (input_data){
                 schedule[i].devices.push(device.id);
             }
             device.start = 0;
-        /*Расчет стоимости включений прибора*/
-        }else{
-            device.schedule = [];
-            for (let i = 0; i < 24; ++i){
-                device.schedule[i] = {'price' : device.power*schedule[i].rate, 'start' : i};
-                for(let [d,s] = [1,0]; d < device.duration; ++d){
-                    s = (i+d > 23) ? i+d-24 : i+d;
-                    device.schedule[i].price += device.power*schedule[s].rate;
-                }
-            }
-            device.schedule.sort((a,b)=>{return a.price - b.price;})
-            device.price_delta = device.schedule[23].price-device.schedule[0].price;
         }
 
     });
