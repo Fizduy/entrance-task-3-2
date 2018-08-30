@@ -3,18 +3,20 @@ export function home_schedule (input_data){
 
     /*Объект расписания с исходными данными */
     const schedule = [];
+  
+    function compare(i,from,to, callback){
+      if(i >= to){
+        if(to < from && from <= i){
+          if(i > 23) callback();  
+        }else return false;
+       }
+        return true;
+     }
+  
     input_data.rates.forEach(rate => {
-        function compare(i,from,to, callback){
-                if(i >= to){
-                    if(to < from && from <= i){
-                        if(i > 23) callback();  
-                    }else return false;
-                }
-                return true;
-            }
         for(let i = rate.from; compare(i,rate.from,rate.to,()=>{i = 0}); ++i){
             schedule[i] = {'rate':rate.value};
-            schedule[i].total_power = input_data.maxPower;
+            schedule[i].maxPower = input_data.maxPower;
             schedule[i].devices = [];
         }
     });
@@ -34,16 +36,16 @@ export function home_schedule (input_data){
         }
     }; /* todo: реализовать total_power с использованием this.duration */
 
-    const devices_duration = input_data.devices.slice().sort((a,b)=>{return b.duration - a.duration;});
-    devices_duration.push({duration:0});
-
     /*Тест превышения прибором максимальной мощности и сортировка*/
     input_data.devices.sort((a,b)=>{return b.power - a.power;});
     if(input_data.devices[0].power > input_data.maxPower){
         throw Error('maxPower exceeded! id:'+input_data.devices[0].id);
     }
     
-
+    /* Сортировка по длительности */
+    const devices_duration = input_data.devices.slice().sort((a,b)=>{return b.duration - a.duration;});
+    devices_duration.push({duration:0});
+    
     input_data.devices.forEach(device => {
         device.start_at = false;
 
@@ -93,21 +95,27 @@ export function home_schedule (input_data){
             device.schedule[i].price += device.power*schedule[s].rate;
           }
         }
-        device.schedule.sort((a,b)=>{return a.price - b.price;})
-        device.price_delta = device.schedule[23].price-device.schedule[0].price;
       
         /* Расстановка приборов 24 */
         if(device.duration == 24){
             for (let i = 0; i < device.duration; ++i){
-                schedule[i].total_power -= device.power;
+                schedule[i].maxPower -= device.power;
                 schedule[i].devices.push(device.id);
             }
             device.start = 0;
+        }else{
+          /* Сортировака п опотреблению */
+          device.schedule.sort((a,b)=>{return a.price - b.price;})
+          device.price_delta = device.schedule[23].price-device.schedule[0].price;
         }
 
     });
-
+    
     /* todo: расстановка остальныз приборов + перестоновка с рекурсией */
+    const devices_delta = input_data.devices.slice().sort((a,b)=>{return b.price_delta - a.price_delta;});
+    devices_delta.forEach(device => {
+       
+     });
 
     const test_data = {
         "schedule": {
