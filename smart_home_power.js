@@ -29,7 +29,7 @@ export function home_schedule (input_data){
             "duration": 10,
             "from": 21,
             "to": 7,
-            "total_power": input_data.maxPower*14
+            "total_power":input_data.maxPower*10
         }
     }; /* todo: реализовать total_power с использованием this.duration */
 
