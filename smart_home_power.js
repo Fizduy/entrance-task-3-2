@@ -1,6 +1,30 @@
 /* todo: вынести все этапы и процедуры в отдельные функции */
 export function home_schedule (input_data){
-
+    
+    /*Конфиг тестирования данных*/
+    const mode = {
+        undefined : {
+            "duration": 24,
+            "from": 0,
+            "to": 23
+        },
+        "day": {
+            "duration": 14,
+            "from": 7,
+            "to": 21
+        },
+        "night": {
+            "duration": 10,
+            "from": 21,
+            "to": 7
+        }
+    };
+    
+    /* инициализация total_power */
+    Object.keys(mode).forEach(m =>{
+      m.total_power = m.duration * input_data.maxPower;
+    });
+  
     /*Объект расписания с исходными данными */
     const schedule = [];
   
@@ -11,27 +35,7 @@ export function home_schedule (input_data){
             schedule[i].devices = [];
         }
     });
-    /*Объект для тестирования входных данных*/
-    const mode = {
-        undefined : {
-            "duration": 24,
-            "from": 0,
-            "to": 23,
-            "total_power":input_data.maxPower*24
-        },
-        "day": {
-            "duration": 14,
-            "from": 7,
-            "to": 21,
-            "total_power":input_data.maxPower*14
-        },
-        "night": {
-            "duration": 10,
-            "from": 21,
-            "to": 7,
-            "total_power":input_data.maxPower*10
-        }
-    }; /* todo: реализовать total_power с использованием this.duration */
+     /* todo: реализовать total_power с использованием this.duration */
 
     /*Тест превышения прибором максимальной мощности и сортировка*/
     input_data.devices.sort((a,b)=>{return b.power - a.power;});
