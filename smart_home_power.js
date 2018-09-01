@@ -71,7 +71,8 @@ export function home_schedule(input_data) {
         }
 
     });
-
+    /* Фильтрация круглосуточных приборов и сортировка по мин. дельте*/
+    const devices_delta = input_data.devices.filter(dev=>{return dev.start_at === false}).sort((a, b) => { return b.price_min_delta - a.price_min_delta; });
     /* Расстановка остальных приборов. todo: перестоновка с рекурсией */
     const devices_delta = input_data.devices.slice().sort((a, b) => { return b.price_min_delta - a.price_min_delta; });
 
