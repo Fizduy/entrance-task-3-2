@@ -1,5 +1,4 @@
 export function home_schedule(input_data) {
-
     /*Конфиг тестирования данных*/
     const mode = {
         undefined: {
@@ -18,7 +17,6 @@ export function home_schedule(input_data) {
             to: 7
         }
     };
-
     /* инициализация mode.total_power */
     Object.keys(mode).forEach(m => {
         m.total_power = m.duration * input_data.maxPower;
@@ -26,11 +24,9 @@ export function home_schedule(input_data) {
 
     let schedule = {};
     for(let i = 0; i <24 ; schedule[i++]=[]);
-
-    /*Объект расписания с доступной мощностью и ценой*/
     let available = available_construct(input_data.rates, input_data.maxPower);
 
-    /*Тест превышения прибором максимальной мощности и сортировка*/
+    /*Тест превышения прибором максимальной мощности и сортировка по мощности*/
     input_data.devices.sort((a, b) => { return b.power - a.power; });
     if (input_data.devices[0].power > input_data.maxPower) {
         throw Error('maxPower exceeded! id:' + input_data.devices[0].id);
@@ -42,38 +38,20 @@ export function home_schedule(input_data) {
 
     /* Подготовка и тесты приборов*/
     input_data.devices.forEach(device => {
+
         device.start_at = false;
-
-        /*Тест пика мощности - todo: вынести из цикла, либо реализовать тест для пересечений с приборами менее 24 часа*/
         power_peak_test(device,input_data.maxPower, devices_duration, mode);
-
-        /*Тест Общей мощности и day/night промежутков*/
-        total_power_counter(device, mode)
-
-        /*Расчет стоимости включений прибора, для 24-приборов только один расчет, от 0:00*/
+        total_power_counter(device, mode);
         device.available = device_available_construct(device, available, mode);
 
-        /* Расстановка приборов 24 */
         if (device.duration == 24) {
-            for (let t = 0; t < device.duration; ++t) {
-                available[t].maxPower -= device.power;
-                schedule[t].push(device.id);
-            }
-            Object.assign(device,{start_at:0,price_delta:0,price_min_delta:0,schedule_price:device.available[0].price});
+            put_24_in_schedule(device,schedule,available);
         } else {
-            /* Сортировака остальных по потреблению */
-            device.available.sort((a, b) => { return a.price - b.price; })
-            device.price_delta = device.available[device.available.length - 1].price - device.available[0].price;
-
-            let min_delta = 1;
-            for (; device.available[min_delta].price === device.available[0].price; ++min_delta);
-            device.price_min_delta = device.available[min_delta].price - device.available[0].price;
+            device_delta_sort(device);
         }
-
     });
-    /* Фильтрация круглосуточных приборов и сортировка по мин. дельте*/
+    /*Расстановка остальных приборов c фильтрацией круглосуточных и сортировкой по мин. дельте*/
     const devices_delta = input_data.devices.filter(dev=>{return dev.start_at === false}).sort((a, b) => { return b.price_min_delta - a.price_min_delta; });
-    /* Расстановка остальных приборов. todo: перестоновка с рекурсией */
     devices_delta.forEach(device => put_device_in_schedule(device,schedule,available, new_data => {[schedule,available] = new_data;}));
 
     /*конструкция исходящего формата данных*/
@@ -83,8 +61,7 @@ export function home_schedule(input_data) {
             value:0,
             devices:{}
         }
-    }
-
+    };
     input_data.devices.forEach(device=>{
         output_data.consumedEnergy.value += device.schedule_price;
         output_data.consumedEnergy.devices[device.id] = device.schedule_price;
@@ -100,7 +77,7 @@ function hour_counter(i, from, to, callback) {
     }
     return true;
 }
-
+/*Объект расписания с доступной мощностью и ценой*/
 function available_construct (rates,maxPower){
     const available = []; 
     rates.forEach(rate => {
@@ -113,8 +90,7 @@ function available_construct (rates,maxPower){
     });
     return available;
 }
-
-/*todo: power_peak_test требует доработки учета пересечений с не клуглосуточными приборами */
+/*Тест пика мощности todo: power_peak_test требует доработки учета пересечений с не клуглосуточными приборами */
 function power_peak_test(device, maxPower, durations, mode) {
     let device_maxPower = maxPower - device.power;
     for (let i = 0; durations[i].duration > 23; ++i) {
@@ -133,7 +109,7 @@ function power_peak_test(device, maxPower, durations, mode) {
         throw Error(`maxPower exceeded by id:${device.id} and others, working at the same time!`);
     }
 }
-
+/*Тест Общей мощности и day/night промежутков*/
 function total_power_counter(device,mode) {
     mode.undefined.total_power -= device.power * device.duration;
     if (device.mode !== undefined) {
@@ -153,7 +129,7 @@ function total_power_counter(device,mode) {
         }
     });
 }
-
+/*Расчет стоимости включений прибора, для 24-приборов только один расчет, от 0:00*/
 function device_available_construct(device, available, mode) {
     let dev_available = [];
     let to = (device.mode === undefined) ? mode[device.mode].to : mode[device.mode].to - device.duration;
@@ -173,8 +149,26 @@ function device_available_construct(device, available, mode) {
     }
     return dev_available;
 }
-
+/* Сортировака остальных по потреблению */
+function device_delta_sort(device) {
+    let min_delta = 1;
+    device.available.sort((a, b) => { return a.price - b.price; })
+    for (; device.available[min_delta].price === device.available[0].price; ++min_delta);
+    device.price_min_delta = device.available[min_delta].price - device.available[0].price;
+    /*дополнительное определние максимальной дельты*/
+    device.price_delta = device.available[device.available.length - 1].price - device.available[0].price;
+}
+/* Расстановка приборов 24 */
+function put_24_in_schedule(device,schedule,available){
+    for (let t = 0; t < device.duration; ++t) {
+        available[t].maxPower -= device.power;
+        schedule[t].push(device.id);
+    }
+    Object.assign(device,{start_at:0,price_delta:0,price_min_delta:0,schedule_price:device.available[0].price});
+}
+/* Расстановка приборов. todo: перестоновка с рекурсией */
 function put_device_in_schedule(device,schedule,available, callback) {
+
     /*Обход всех доступных расписаний*/
     for (let s = 0; s < device.available.length; ++s) {
         let checkout = true;
@@ -201,5 +195,8 @@ function put_device_in_schedule(device,schedule,available, callback) {
             return [schedule_temp,available_temp];
         }
     }
+    console.log(input_data);
+    console.log(schedule);
+    console.log(available);
     throw Error(`Can't put id:${device.id} to schedule!`);
 }
