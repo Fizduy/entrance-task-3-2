@@ -1,4 +1,3 @@
-/* todo: вынести все этапы и процедуры в отдельные функции */
 export function home_schedule(input_data) {
 
     /*Конфиг тестирования данных*/
@@ -41,11 +40,12 @@ export function home_schedule(input_data) {
     const devices_duration = input_data.devices.slice().sort((a, b) => { return b.duration - a.duration; });
     devices_duration.push({ duration: 0 });
 
+    /* Подготовка и тесты приборов*/
     input_data.devices.forEach(device => {
         device.start_at = false;
 
         /*Тест пика мощности - todo: вынести из цикла, либо реализовать тест для пересечений с приборами менее 24 часа*/
-        power_peak_test(device, devices_duration, mode);
+        power_peak_test(device,input_data.maxPower, devices_duration, mode);
 
         /*Тест Общей мощности и day/night промежутков*/
         total_power_counter(device, mode)
@@ -74,8 +74,6 @@ export function home_schedule(input_data) {
     /* Фильтрация круглосуточных приборов и сортировка по мин. дельте*/
     const devices_delta = input_data.devices.filter(dev=>{return dev.start_at === false}).sort((a, b) => { return b.price_min_delta - a.price_min_delta; });
     /* Расстановка остальных приборов. todo: перестоновка с рекурсией */
-    const devices_delta = input_data.devices.slice().sort((a, b) => { return b.price_min_delta - a.price_min_delta; });
-
     devices_delta.forEach(device => put_device_in_schedule(device,schedule,available, new_data => {[schedule,available] = new_data;}));
 
     /*конструкция исходящего формата данных*/
@@ -109,8 +107,7 @@ function available_construct (rates,maxPower){
         for(let i = rate.from; hour_counter(i,rate.from,rate.to,()=>{i = 0}); ++i){
             available[i] = {
                 rate:rate.value,
-                maxPower:maxPower,
-                devices:[]
+                maxPower:maxPower
             };
         }
     });
@@ -118,8 +115,8 @@ function available_construct (rates,maxPower){
 }
 
 /*todo: power_peak_test требует доработки учета пересечений с не клуглосуточными приборами */
-function power_peak_test(device, durations, mode) {
-    let device_maxPower = input_data.maxPower - device.power;
+function power_peak_test(device, maxPower, durations, mode) {
+    let device_maxPower = maxPower - device.power;
     for (let i = 0; durations[i].duration > 23; ++i) {
         if (durations[i].id != device.id) {
             device_maxPower -= durations[i].power;
