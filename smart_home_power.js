@@ -77,7 +77,20 @@ export function home_schedule(input_data) {
 
     devices_delta.forEach(device => put_device_in_schedule(device,schedule,available, new_data => {[schedule,available] = new_data;}));
 
-    return schedule;
+    /*конструкция исходящего формата данных*/
+    const output_data = {
+        schedule:schedule,
+        consumedEnergy:{
+            value:0,
+            devices:{}
+        }
+    }
+
+    input_data.devices.forEach(device=>{
+        output_data.consumedEnergy.value += device.schedule_price;
+        output_data.consumedEnergy.devices[device.id] = device.schedule_price;
+    });
+    return output_data;
 }
 
 function hour_counter(i, from, to, callback) {
