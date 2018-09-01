@@ -155,7 +155,7 @@ function device_schedule_construct(device,schedule,mode){
             end = (i+d > 23) ? i+d-24 : i+d;
             dev_schedule[dev_i].price += device.power*schedule[end].rate;
           }
-          dev_schedule[dev_i].stop = end;
+          dev_schedule[dev_i].stop = end+1;
         }
     return dev_schedule;
 }
