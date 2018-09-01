@@ -67,6 +67,8 @@ export function home_schedule(input_data) {
     });
     return output_data;
 }
+
+
 /*Для перехода for между сутками*/
 function hour_counter(i, from, to, callback) {
     if (i >= to) {
@@ -136,16 +138,21 @@ function device_available_construct(device, available, mode) {
         to = (device.duration == 24) ? 1 : to + 24;
     }
     for (let i = mode[device.mode].from; hour_counter(i, mode[device.mode].from, to, () => { i = 0 }); ++i) {
-        dev_available.push({ price: device.power/1000 * available[i].rate, 'start': i });
+        dev_available.push({ price: price_round(device.power/1000 * available[i].rate), 'start': i });
         let end = 0;
         let dev_i = dev_available.length - 1;
         for (let d = 1; d < device.duration; ++d) {
             end = (i + d > 23) ? i + d - 24 : i + d;
-            dev_available[dev_i].price += device.power/1000 * available[end].rate;
+            dev_available[dev_i].price += price_round(device.power/1000 * available[end].rate);
         }
+        //dev_available[dev_i].price = price_round(dev_available[dev_i].price);
         dev_available[dev_i].stop = end + 1;
     }
     return dev_available;
+}
+
+function price_round(price){
+    return Math.round(price * 10000) / 10000;
 }
 /* Сортировака включений прибора по потреблению */
 function device_delta_sort(device) {
