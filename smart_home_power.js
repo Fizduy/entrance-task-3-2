@@ -100,7 +100,7 @@ function schedule_construct (rates,maxPower){
     return schedule;
 }
 
-/*todo: power_peak_test требует доработки учета пересечений с не 24-приборами */
+/*todo: power_peak_test требует доработки учета пересечений с не клуглосуточными приборами */
 function power_peak_test(device, durations, mode) {
     let device_maxPower = input_data.maxPower - device.power;
     for (let i = 0; durations[i].duration > 23; ++i) {
@@ -140,30 +140,32 @@ function total_power_counter(device,mode) {
     });
 }
 
-function device_schedule_construct(device,schedule,mode){
-        let dev_schedule = [];
-        let to = (device.mode === undefined) ? mode[device.mode].to : mode[device.mode].to - device.duration;
-        if(to < 0){
-          to = (device.duration == 24) ? 1 : to + 24;
-        }
-        
+function device_schedule_construct(device, schedule, mode) {
+    let dev_schedule = [];
+    let to = (device.mode === undefined) ? mode[device.mode].to : mode[device.mode].to - device.duration;
+    if (to < 0) {
+        to = (device.duration == 24) ? 1 : to + 24;
+    }
+
     for (let i = mode[device.mode].from; hour_counter(i, mode[device.mode].from, to, () => { i = 0 }); ++i) {
         dev_schedule.push({ price: device.power/1000 * schedule[i].rate, 'start': i });
-          let end = 0;
+        let end = 0;
         let dev_i = dev_schedule.length - 1;
         for (let d = 1; d < device.duration; ++d) {
             end = (i + d > 23) ? i + d - 24 : i + d;
             dev_schedule[dev_i].price += device.power/1000 * schedule[end].rate;
-          }
-          dev_schedule[dev_i].stop = end+1;
         }
+        dev_schedule[dev_i].stop = end + 1;
+    }
     return dev_schedule;
 }
 
 function put_device_in_schedule(device, schedule, callback) {
+    /*Обход всех доступных расписаний*/
     for (let s = 0; s < device.schedule.length; ++s) {
         let checkout = true;
         const schedule_temp = Object.assign([], schedule);
+        /*Проверка доступной мощности и предварительное заполнение расписания*/
         for (let t = device.schedule[s].start; hour_counter(t, device.schedule[s].start, device.schedule[s].stop, () => { t = 0 }); ++t) {
             if (schedule[t].maxPower >= device.power) {
                 schedule_temp[t] = {
@@ -180,8 +182,8 @@ function put_device_in_schedule(device, schedule, callback) {
         if (checkout) {
             device.start_at = device.schedule[s].start;
             callback(schedule_temp);
-            break;
+            return schedule_temp;
         }
-        throw Error(`Can't put id:${device.id} to schedule!`);
     }
+    throw Error(`Can't put id:${device.id} to schedule!`);
 }
