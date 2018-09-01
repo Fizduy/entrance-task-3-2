@@ -168,29 +168,30 @@ function put_24_in_schedule(device,schedule,available){
 function put_device_in_schedule(device, schedule, available) {
     let variants = [{ hours: [], power: 0 }];
     /*Обход всех доступных расписаний*/
-    for (let s = 0; s < device.available.length; ++s) {
+    for (let [s, v] = [0, 0]; s < device.available.length; ++s) {
         let checkout = true;
-        const available_temp = Object.assign([], available);
-        const schedule_temp = Object.assign({}, schedule);
-        /*Проверка доступной мощности и предварительное заполнение расписания*/
-        for (let t = device.available[s].start; hour_counter(t, device.available[s].start, device.available[s].stop, () => { t = 0 }); ++t) {
-            if (available[t].maxPower >= device.power) {
-                available_temp[t] = {
-                    rate: available[t].rate,
-                    maxPower: available[t].maxPower - device.power
-                };
-                schedule_temp[t] = schedule_temp[t].slice();
-                schedule_temp[t].push(device.id);
-            } else {
-                checkout = false;
-                break;
+        if (variants[0].power == 0 || device.available[s].price == device.available[s - 1].price) {
+            /*Отбор вариантов с достаточной мощностью*/
+            for (let t = device.available[s].start; hour_counter(t, device.available[s].start, device.available[s].stop, () => { t = 0 }); ++t) {
+                if (available[t].maxPower >= device.power) {
+                    variants[v].hours.push(t);
+                    variants[v].power += available[t].maxPower;
+                } else {
+                    variants[v] = { hours: [], power: 0 };
+                    checkout = false;
+                    break;
+                }
             }
-        }
-        if (checkout) {
+            if (checkout) variants[++v] = { hours: [], power: 0 };
+        } else {
+            variants.sort((a, b) => { return b.power - a.power });
+            variants[0].hours.forEach(hour => {
+                schedule[hour].push(device.id);
+                available[hour].maxPower -= device.power;
+            });
             device.schedule_price = device.available[s].price;
-            device.start_at = device.available[s].start;
-            callback([schedule_temp,available_temp]);
-            return [schedule_temp,available_temp];
+            device.start_at = variants[0].hours[0];
+            return true;
         }
     }
     console.log(device);
