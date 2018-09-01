@@ -147,13 +147,13 @@ function device_schedule_construct(device,schedule,mode){
           to = (device.duration == 24) ? 1 : to + 24;
         }
         
-        for (let i = mode[device.mode].from;hour_counter(i,mode[device.mode].from,to,()=>{i = 0}); ++i){
-            dev_schedule.push({price : device.power*schedule[i].rate, 'start' : i});
+    for (let i = mode[device.mode].from; hour_counter(i, mode[device.mode].from, to, () => { i = 0 }); ++i) {
+        dev_schedule.push({ price: device.power/1000 * schedule[i].rate, 'start': i });
           let end = 0;
-          let dev_i = dev_schedule.length-1;
-          for(let d = 1; d < device.duration; ++d){
-            end = (i+d > 23) ? i+d-24 : i+d;
-            dev_schedule[dev_i].price += device.power*schedule[end].rate;
+        let dev_i = dev_schedule.length - 1;
+        for (let d = 1; d < device.duration; ++d) {
+            end = (i + d > 23) ? i + d - 24 : i + d;
+            dev_schedule[dev_i].price += device.power/1000 * schedule[end].rate;
           }
           dev_schedule[dev_i].stop = end+1;
         }
