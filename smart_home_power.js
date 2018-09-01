@@ -89,7 +89,7 @@ export function home_schedule(input_data) {
         output_data.consumedEnergy.value += device.schedule_price;
         output_data.consumedEnergy.devices[device.id] = device.schedule_price;
     });
-    return output_data;
+    return JSON.stringify(output_data,"",4);
 }
 
 function hour_counter(i, from, to, callback) {
